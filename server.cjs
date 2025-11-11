@@ -10,10 +10,32 @@ const cors = require('cors');
 // --- CONFIG ---
 const PORT = process.env.PORT || 3000;
 // Update this to match your Firebase project database URL
-const DB_URL = 'https://new-satta-app-default-rtdb.firebaseio.com/';
-const VAPID_PUBLIC_KEY = 'BPf9BmoCk9shYN5GSDT1bROW76nus4SOFmBlzR3n5sSexXi_JZvjhBPsRPH6pQx1fueyX7gMkpOuc0H9tsqYMCo';
-const VAPID_PRIVATE_KEY = '06zpPnCs54KYx32M5t9l-rWMj_Nnjn3fW_ERAcyZe-M';
-const SERVICE_ACCOUNT = require('./serviceAccountKey.json'); // Place your Firebase Admin SDK key here
+const DB_URL = process.env.FIREBASE_DB_URL || 'https://new-satta-app-default-rtdb.firebaseio.com/';
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
+
+let SERVICE_ACCOUNT;
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  try {
+    SERVICE_ACCOUNT = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  } catch (error) {
+    console.error('[Config] Failed to parse FIREBASE_SERVICE_ACCOUNT JSON.');
+    throw error;
+  }
+} else {
+  try {
+    SERVICE_ACCOUNT = require('./serviceAccountKey.json');
+    console.warn('[Config] Loaded serviceAccountKey.json from disk. For production, supply FIREBASE_SERVICE_ACCOUNT env.');
+  } catch (error) {
+    console.error('[Config] No Firebase service account credentials found.');
+    throw error;
+  }
+}
+
+if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
+  console.error('[Config] Missing VAPID_PUBLIC_KEY or VAPID_PRIVATE_KEY environment variables.');
+  throw new Error('VAPID keys are required. Set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY environment variables.');
+}
 
 // --- INIT ---
 admin.initializeApp({
@@ -22,11 +44,7 @@ admin.initializeApp({
 });
 const db = getDatabase();
 
-webpush.setVapidDetails(
-  'mailto:your-email@example.com',
-  VAPID_PUBLIC_KEY,
-  VAPID_PRIVATE_KEY
-);
+webpush.setVapidDetails('mailto:your-email@example.com', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
 const app = express();
 app.use(cors());
