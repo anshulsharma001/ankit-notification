@@ -23,13 +23,8 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     throw error;
   }
 } else {
-  try {
-    SERVICE_ACCOUNT = require('./serviceAccountKey.json');
-    console.warn('[Config] Loaded serviceAccountKey.json from disk. For production, supply FIREBASE_SERVICE_ACCOUNT env.');
-  } catch (error) {
-    console.error('[Config] No Firebase service account credentials found.');
-    throw error;
-  }
+  console.error('[Config] FIREBASE_SERVICE_ACCOUNT env not set and serviceAccountKey.json missing.');
+  throw new Error('Service account credentials are required via FIREBASE_SERVICE_ACCOUNT environment variable.');
 }
 
 if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
