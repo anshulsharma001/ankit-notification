@@ -43,6 +43,7 @@ webpush.setVapidDetails('mailto:your-email@example.com', VAPID_PUBLIC_KEY, VAPID
 
 const app = express();
 app.use(cors());
+app.use(express.json());
 
 // --- LISTEN FOR NUMBER UPDATES ---
 const sattanameeRef = db.ref('sattanamee');
@@ -191,6 +192,45 @@ app.get('/send-test', async (req, res) => {
     }
   }
   res.status(200).send(`Notifications sent: ${success}, failed: ${fail}`);
+});
+
+app.post('/send-custom', async (req, res) => {
+  const { title, body } = req.body || {};
+
+  if (!title || !body) {
+    return res.status(400).json({ error: 'Title and body are required.' });
+  }
+
+  try {
+    const subsSnap = await db.ref('webPushSubscriptions').once('value');
+    const subsObj = subsSnap.val();
+    if (!subsObj) return res.status(200).send('No subscribers found.');
+
+    const endpointMap = {};
+    Object.values(subsObj).forEach(sub => {
+      if (sub.endpoint) endpointMap[sub.endpoint] = sub;
+    });
+    const uniqueSubs = Object.values(endpointMap);
+    const payload = JSON.stringify({ title, body });
+
+    let success = 0;
+    let fail = 0;
+
+    for (const sub of uniqueSubs) {
+      try {
+        await webpush.sendNotification(sub, payload);
+        success++;
+      } catch (err) {
+        console.error('Failed to send custom notification:', err.message);
+        fail++;
+      }
+    }
+
+    res.status(200).send(`Custom notifications sent: ${success}, failed: ${fail}`);
+  } catch (error) {
+    console.error('Error in /send-custom:', error);
+    res.status(500).json({ error: 'Failed to send custom notification.' });
+  }
 });
 
 app.listen(PORT, () => {
